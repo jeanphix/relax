@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Relax!</title>
+        <link rel="stylesheet" href="reveal.js/css/reveal.min.css">
+        <link rel="stylesheet" href="reveal.js/css/theme/serif.css" id="theme">
+        <link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+        <style>
+            .reveal pre code {
+                max-height: 600px;
+            }
+            .reveal .slides section pre.fragment.fade-out,
+            .reveal .slides section pre.fragment.fade-in.visible {
+                display: block;
+            }
+            .reveal .slides section pre.fragment.fade-in,
+            .reveal .slides section pre.fragment.fade-out.visible {
+                display: none;
+            }
+            .reveal .slides section .fragment.strike {
+                opacity: 1;
+            }
+            .strike.visible {
+                text-decoration: line-through;
+            }
+        </style>
+    <head>
+    <body>
+        <div class="reveal">
+            <div class="slides">
+                <section>
+                    <h1>Relax!</h1>
+                    <h2 class="fragment fade-in">(don't do it)</h2>
+                </section>
+                <section>
+                    <img src="media/images/deployer.jpg" alt="deployer" />
+                    <blockquote>Leave me alone! I'm deploying...</blockquote>
+                </section>
+                <section>
+                    <h2>A basic web application</h2>
+                    <pre><code>from flask import Flask
+from flask.views import MethodView
+
+
+app = Flask(__name__)
+
+
+class HelloView(MethodView):
+
+    def get(self, name):
+        return "Hello %s!" % name, 200
+
+
+app.add_url_rule('/&lt;name>/', HelloView.as_view('hello'),
+    _methods=['GET'])</code></pre>
+                </section>
+                <section>
+                    <h2>Application coverage</h2>
+                    <pre><code>import unittest
+
+
+from app import app, HelloView
+
+
+class HelloViewTest(unittest.TestCase):
+
+    def test_get_bob(self):
+        self.assertEqual(HelloView().get('Bob'), ('Hello Bob!', 200))
+
+    def test_http_get_bob(self):
+        client = app.test_client()
+        response = client.get('/bob/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, 'Hello Bob!')</code></pre>
+                </section>
+                <section>
+                    <h2>Remote production setup</h2>
+                    <pre><code>$ git init
+$ git add .
+$ git commit -m 'Bootstrap my app'
+$ git remotes add production owner@my.production.server:repository.git</code></pre>
+                </section>
+                <section>
+                    <h2>Deployment script</h2>
+                    <pre><code>from fabric.state import env
+from fabric.api import cd, task
+
+# ....
+
+@task
+def checkout(revision):
+    with cd(env.repo_path):
+        run('git checkout %s -f' % revision)
+
+@task
+def deploy(remote, revision='HEAD'):
+    push(revision)
+    checkout(commit)
+    restart()
+
+@task
+def push(remote):
+    local('git push %s master' % remote)
+
+@task
+def restart():
+    worktree('sudo /usr/bin/systemctl restart ${APP}')</code></pre>
+                </section>
+                <section>
+                    <h2>Ok, <span class="fragment strike" data-fragment-index="2">I'm done</span>, let's deploy!</h2>
+                    <pre class="fragment fade-in" data-fragment-index="1"><code>$ fab deploy:remote=production</code></pre>
+                    <h3 class="fragment fade-in" data-fragment-index="3">deployment tasks are not covered</h3>
+                </section>
+                <section>
+                    <h2>Testing a deployment task</h2>
+                    <pre><code>import unitest
+from fabric.state import env
+from fabfile import checkout
+
+
+class CheckoutTest(unittest.TestCase):
+
+    def setUp(self):
+        # start the mocked target environment
+        env.host = 'my.mocked.host'
+        env.user = 'owner'
+
+    def tearDown(self):
+        # destroy the mocked target environment
+
+    def test_head(self):
+        checkout()
+        # assert head has been checked out</code></pre>
+                </section>
+                <section>
+                    <h3>Now my application code and my deployment tasks are covered,</h3>
+                    <h3 class="fragment strike">I should be able to deploy safely!</h3>
+                    <h3 class="fragment fade-in">I'm absolutely not sure that the application will run properly over production env.</h3>
+                </section>
+                <section>
+                    <h3>Functional tests should be written using a real HTTP client</h3>
+                    <pre class="fragment fade-out"><code>import unittest
+
+from app import app, HelloView
+
+
+class HelloViewTest(unittest.TestCase):
+
+    def test_http_get_bob(self):
+        client = app.test_client()
+        response = client.get('/bob/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, 'Hello Bob!')</code></pre>
+                    <pre class="fragment fade-in"><code>import unittest
+import requests
+
+from app import app, HelloView
+
+
+class HelloViewTest(unittest.TestCase):
+
+    def setUp(self):
+        # start my app in a dedicated thread
+
+    def test_http_get_bob(self):
+        response = requests.get('localhost:5000/bob/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, 'Hello Bob!')</code></pre>
+                </section>
+                <section>
+                    <h2>Then they can be run over mocked production</h2>
+                    <pre><code>import unittest
+import requests
+
+from app import app, HelloView
+
+
+class HelloViewTest(unittest.TestCase):
+
+    def setUp(self):
+        # start my app in mocked production env
+
+    def test_http_get_bob(self):
+        response = requests.get('localhost:5000/bob/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, 'Hello Bob!')</code></pre>
+                </section>
+                <section>
+                    <h3>How to mock production setup?</h3>
+                    <ul>
+                        <li class="fragment fade-in">use manifests (chef, puppet, salt...)</li>
+                        <li class="fragment fade-in">real instance(s)</li>
+                        <li class="fragment fade-in">virtualization (qemu, virtualbox...)</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+        <script type="text/javascript" src="reveal.js/lib/js/head.min.js"></script>
+        <script type="text/javascript" src="reveal.js/js/reveal.min.js"></script>
+        <script type="text/javascript">
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                history: true,
+                center: true,
+
+                theme: Reveal.getQueryHash().theme,
+                transition: Reveal.getQueryHash().transition || 'none',
+
+                // Optional libraries used to extend on reveal.js
+                dependencies: [
+                    { src: 'reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                    { src: 'reveal.js/plugin/markdown/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+                    { src: 'reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+                    { src: 'reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+                    // { src: 'plugin/search/search.js', async: true, condition: function() { return !!document.body.classList; } }
+                    // { src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+                ]
+            });
+        </script>
+    </body>
+</html>
